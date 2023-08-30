@@ -1,27 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import Web3 from 'web3'; // Import Web3
+import { ethers } from 'ethers';
 import VFContractABI from './VFContractABI.json';
-const contractAddress = '0xb4d66Cb1665A1249ED3cdF4546fFa3205a3Fd795';
+
+const contractAddress = '0x06B533855163afb7E0Ec7b6643F3492E78e9c0F1';
+const rpcURL = 'https://polygon-mumbai.infura.io/v3/99405a56ad874afbb5c5e697f54f227b';
 
 const Contribute = () => {
-  const [web3, setWeb3] = useState(null);
+  const [provider, setProvider] = useState(null);
   const [contract, setContract] = useState(null);
   const [account, setAccount] = useState(null);
 
   useEffect(() => {
     const init = async () => {
-      if (window.ethereum) {
-        try {
-          await window.ethereum.enable();
-          const web3Instance = new Web3(window.ethereum);
-          const accounts = await web3Instance.eth.getAccounts();
-          const vfContract = new web3Instance.eth.Contract(VFContractABI, contractAddress);
-          setWeb3(web3Instance);
+      try {
+        // Check if MetaMask is installed
+        if (window.ethereum) {
+          const providerInstance = new ethers.providers.Web3Provider(window.ethereum);
+          const accounts = await providerInstance.listAccounts();
+          const signer = providerInstance.getSigner(accounts[0]);
+          const vfContract = new ethers.Contract(contractAddress, VFContractABI, signer);
+
+          setProvider(providerInstance);
           setContract(vfContract);
           setAccount(accounts[0]);
-        } catch (error) {
-          console.error('Error initializing Web3:', error);
+        } else {
+          console.error('MetaMask not detected. Please install and connect to MetaMask.');
         }
+      } catch (error) {
+        console.error('Error initializing Ethers:', error);
       }
     };
     init();
@@ -29,41 +35,24 @@ const Contribute = () => {
 
   const handleGetSeed = async () => {
     try {
-      await contract.methods.getSeed().send({ from: account });
+      const tx = await contract.getSeed();
+      await tx.wait();
       alert('Seed NFT minted!');
     } catch (error) {
       console.error('Error getting seed:', error);
     }
   };
 
-  const handleGiveWater = async () => {
-    try {
-      await contract.methods.giveWater().send({ from: account });
-      alert('Water given!');
-    } catch (error) {
-      console.error('Error giving water:', error);
-    }
-  };
-
-  const handleApplyManure = async () => {
-    try {
-      await contract.methods.applyManure().send({ from: account });
-      alert('Manure applied!');
-    } catch (error) {
-      console.error('Error applying manure:', error);
-    }
-  };
-
-  if (!web3) {
+  if (!provider) {
     return <div>Loading...</div>;
   }
 
   return (
-    <>
+    <div>
+      <h1>Virtual Forest Contract Interaction</h1>
+      <p>Connected Account: {account}</p>
       <button onClick={handleGetSeed}>Get Seed</button>
-      <button onClick={handleGiveWater}>Give Water</button>
-      <button onClick={handleApplyManure}>Apply Manure</button>
-    </>
+    </div>
   );
 };
 
